@@ -1,0 +1,40 @@
+{
+  "name": "chatApp",
+  "version": "1.0.0",
+  "description": "messaging application",
+  "main": "app.js",
+  "repository": "git@github.com:Mathews9396/chatApp.git",
+  "author": "Mathews Mathews <mathewsmathews95@gmail.com>",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "start": "nodemon --trace-warnings app.js"
+  },
+  "_moduleAliases": {
+    "@root": ".",
+    "@controllers": "./src/controllers",
+    "@models": "./src/models",
+    "@routes": "./src/routes",
+    "@db": "./src/db",
+    "@utils": "./src/utils",
+    "@sockets": "./src/sockets",
+    "@middlewares": "./src/middlewares",
+    "@helpers": "./src/helpers"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "module-alias": "^2.2.3",
+    "mongodb": "^6.5.0",
+    "mongoose": "^8.2.4",
+    "morgan": "^1.10.0",
+    "nodemon": "^3.1.0",
+    "socket.io": "^4.7.5",
+    "uuid": "^9.0.1",
+    "validator": "^13.11.0",
+    "winston": "^3.13.0"
+  }
+}
