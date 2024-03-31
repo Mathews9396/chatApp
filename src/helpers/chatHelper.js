@@ -1,14 +1,16 @@
 const PersonalChat = require("@models/personalChat");
+const GroupChat = require("@models/groupChat");
 
 async function validateUserPartOfRoom(roomId, userId) {
-  const chat = await PersonalChat.findOne({ chatUniqueId: roomId });
+  let chat = await PersonalChat.findOne({ chatUniqueId: roomId });
   if (!chat) {
-    throw new Error(`Chat room doesnt exist`);
+    chat = await GroupChat.findOne({ chatUniqueId: roomId });
+    if (!chat) throw new Error(`Chat room doesnt exist`);
   }
   if (chat.participants.includes(userId)) {
     return chat;
   }
-  throw new Error(`User is part of chat`);
+  throw new Error(`User is not part of chat`);
 }
 
 module.exports = {

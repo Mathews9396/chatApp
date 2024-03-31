@@ -1,24 +1,43 @@
 const PersonalChat = require("@models/personalChat");
-const Message = require("@models/message");
+const GroupChat = require("@models/groupChat");
+// const Message = require("@models/message");
 const mongoose = require("mongoose");
 const { validateUserPartOfRoom } = require("@helpers/chatHelper");
+// const crypto = require("crypto");
 
 const User = require("@models/user");
-const { v4: uuidv4 } = require("uuid");
+// const { v4: uuidv4 } = require("uuid");
+
+async function createUserIfNotExist(email) {
+  let user = await User.findOne({
+    email: email,
+  });
+  if (!user) {
+    user = new User({
+      name: "Firstname",
+      email: email,
+      password: "letsEndorse",
+      age: 25,
+    });
+    await user.save();
+  }
+  return user;
+}
 
 const fetchAllChats = async function (req, res) {
   try {
-    console.log(`user id - ${req.user._id}`);
-    const chats = await PersonalChat.find({ participants: req.user._id })
-      .populate("participants", "username") // Populate participants with username only
+    const personalChats = await PersonalChat.find({ participants: req.user._id })
+      .populate("participants", "name") // Populate participants with username only
       .sort({ lastMessageTimestamp: -1 }); // Sort by lastMessageTimestamp in descending order
-    console.log("Chats:", chats);
-    return res.status(200).json({ message: `Chats retieved successfully` });
 
-    // Do something with the fetched chats
+    const groupChats = await GroupChat.find({ participants: req.user._id })
+      .populate("participants", "name") // Populate participants with name only
+      .sort({ lastMessageTimestamp: -1 }); // Sort by lastMessageTimestamp in descending order
+
+    return res.status(200).json({ message: `Chats retieved successfully`, personalChats, groupChats });
   } catch (err) {
     console.error(err);
-    return res.status(400).json({ error: err.message });
+    return res.status(400).json({ message: "Error while fetching chats", error: err.message });
   }
 };
 
@@ -28,20 +47,8 @@ const createPersonalChat = async function (req, res) {
     if (!req.body.email || req.body.email == req.user.email) {
       return res.status(400).json({ message: "Provide a valid email" });
     }
-    let userExists = await User.findOne({
-      email: req.body.email,
-    });
-    if (!userExists) {
-      userExists = new User({
-        name: "Firstname",
-        email: req.body.email,
-        password: "letsEnforse",
-        age: 25,
-      });
-      await userExists.save();
-    }
-
-    const participants = [userExists._id, req.user._id];
+    const userToAdd = await createUserIfNotExist(req.user.email);
+    const participants = [userToAdd._id, req.user._id];
 
     let chatExists = await PersonalChat.findOne({
       participants: { $elemMatch: { $in: participants }, $size: 2 },
@@ -62,11 +69,35 @@ const createPersonalChat = async function (req, res) {
   }
 };
 
+const createGroupChat = async function (req, res) {
+  try {
+    console.log(req.body.emails);
+    if (!req.body.emails || req.body.emails.length == 0) {
+      return res.status(400).json({ message: "Provide valid emails" });
+    }
+    const userEmailsToAdd = req.body.emails;
+    const participants = [];
+    participants.push(req.user._id);
+    for (const email of userEmailsToAdd) {
+      let user = await createUserIfNotExist(email);
+      participants.push(user._id);
+    }
+    const newGroupChat = new GroupChat({
+      chatUniqueId: await GroupChat.generateUniqueUUID(),
+      participants,
+    });
+    await newGroupChat.save();
+    return res.status(200).json({ message: "Group Chat created", newGroupChat });
+  } catch (err) {
+    console.error(err);
+    return res.status(400).json({ error: err.message });
+  }
+};
+
 const fetchChatMessages = async function (req, res) {
   try {
     const roomId = req.params.roomId;
     if (!roomId) throw new Error("Chat room id needs to be specified");
-    console.log(roomId);
     const chat = await validateUserPartOfRoom(roomId, req.user._id);
     if (!chat) throw new Error("User not part of chat");
     console.log(`User is part of chat, Fetching the messages in chat`);
@@ -85,8 +116,58 @@ const fetchChatMessages = async function (req, res) {
   }
 };
 
+const leaveGroupChat = async function (req, res) {
+  try {
+    const roomId = req.params.roomId;
+    if (!roomId) throw new Error("Chat room id needs to be specified");
+    const chat = await validateUserPartOfRoom(roomId, req.user._id);
+    if (!chat || !chat.groupChat) throw new Error("Invalid Chat room");
+
+    const newParticipants = [];
+    const currentUserIdString = String(req.user._id);
+    for (const id of chat.participants) {
+      if (String(id) == currentUserIdString) continue;
+      newParticipants.push(id);
+    }
+    chat.participants = newParticipants;
+
+    await chat.save();
+
+    return res.status(200).json({
+      message: "you have exited the group chat",
+      newParticipantList: chat.participants,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(400).json({ error: err.message });
+  }
+};
+
+const addUserToGC = async function (req, res) {
+  try {
+    if (!req.params.roomId) throw new Error("Chat room id needs to be specified");
+
+    if (!req.body.email || req.body.email == req.user.email) throw new Error("Provide valid email");
+
+    let chat = await validateUserPartOfRoom(req.params.roomId, req.user._id);
+    if (!chat) throw new Error(`Chat room doesnt exist`);
+    console.log(chat.participants);
+
+    const userToAdd = await createUserIfNotExist(req.body.email);
+    chat.participants.push(userToAdd._id);
+    console.log(chat.participants);
+    return res.status(200).json({ message: "User added to chat!", newParticipantList: chat.participants });
+  } catch (err) {
+    console.error(err);
+    return res.status(400).json({ error: err.message });
+  }
+};
+
 module.exports = {
   fetchAllChats,
   createPersonalChat,
   fetchChatMessages,
+  createGroupChat,
+  leaveGroupChat,
+  addUserToGC,
 };

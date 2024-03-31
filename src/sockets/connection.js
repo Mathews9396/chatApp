@@ -2,17 +2,6 @@ const logger = require("@utils/logger");
 // const PersonalChat = require("@models/personalChat");
 const { createMessage } = require("./message");
 const { validateUserPartOfRoom } = require("@helpers/chatHelper");
-// async function validateUserPartOfRoom(roomId, userId) {
-//   const chat = await PersonalChat.findOne({ chatUniqueId: roomId });
-//   if (!chat) {
-//     throw new Error(`Chat room doesnt exist`);
-//   }
-//   console.log(chat.participants, userId);
-//   if (chat.participants.includes(userId)) {
-//     return chat;
-//   }
-//   throw new Error(`User is part of chat`);
-// }
 
 const socketConnection = function (socket) {
   console.log("user connected with socket id: ", socket.id);
@@ -25,12 +14,10 @@ const socketConnection = function (socket) {
       // const userRoom = `user-${joiningData.roomId}-${joiningData.userId}`;
       const chat = await validateUserPartOfRoom(joiningData.roomId, joiningData.userId);
       if (!chat) throw new Error("User not part of chat");
-      console.log(`chat`, chat);
       socket.data = joiningData;
       socket.data.chat = chat;
 
       socket.join(joiningData.roomId);
-      // socket.join(updatedJoiningData.userRoom);
 
       if (callback) {
         callback({
