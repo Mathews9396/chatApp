@@ -2,11 +2,19 @@ const PersonalChat = require("@models/personalChat");
 const GroupChat = require("@models/groupChat");
 // const Message = require("@models/message");
 const mongoose = require("mongoose");
-const { validateUserPartOfRoom } = require("@helpers/chatHelper");
-// const crypto = require("crypto");
+const { validateUserPartOfRoom, removeValues } = require("@helpers/chatHelper");
+const crypto = require("crypto");
 
 const User = require("@models/user");
 // const { v4: uuidv4 } = require("uuid");
+
+function decryptMessageContent(params) {
+  const decipher = crypto.createDecipheriv(process.env.ENCRYPT_ALGORITHM, params.key, params.iv);
+  let decrypted = decipher.update(params.content, "hex", "utf8");
+  decrypted += decipher.final("utf8");
+
+  return decrypted;
+}
 
 async function createUserIfNotExist(email) {
   let user = await User.findOne({
@@ -85,6 +93,7 @@ const createGroupChat = async function (req, res) {
     const newGroupChat = new GroupChat({
       chatUniqueId: await GroupChat.generateUniqueUUID(),
       participants,
+      chatKey: GroupChat.generateKey(),
     });
     await newGroupChat.save();
     return res.status(200).json({ message: "Group Chat created", newGroupChat });
@@ -100,15 +109,23 @@ const fetchChatMessages = async function (req, res) {
     if (!roomId) throw new Error("Chat room id needs to be specified");
     const chat = await validateUserPartOfRoom(roomId, req.user._id);
     if (!chat) throw new Error("User not part of chat");
-    console.log(`User is part of chat, Fetching the messages in chat`);
-    const chatMessages = await chat.populate({
+
+    let chatMessages = await chat.populate({
       path: "messages",
       populate: {
         path: "sender",
         model: "User",
+        select: "_id name email",
       },
       options: { sort: { createdAt: 1 } }, // Sorting based on createdAt time
     });
+
+    for (const message of chatMessages.messages) {
+      message.content = decryptMessageContent({ content: message.content, key: chat.chatKey, iv: message.messageIV });
+    }
+
+    chatMessages = removeValues(chatMessages, ["chatKey"]);
+
     return res.status(200).json({ message: "chat messages retrieved succesfully ", chatMessages });
   } catch (err) {
     console.error(err);

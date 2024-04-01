@@ -13,6 +13,16 @@ async function validateUserPartOfRoom(roomId, userId) {
   throw new Error(`User is not part of chat`);
 }
 
+const removeValues = function (data, keys) {
+  const dataObject = data.toObject();
+
+  for (let key of keys) {
+    delete dataObject[key];
+  }
+  return dataObject;
+};
+
 module.exports = {
   validateUserPartOfRoom,
+  removeValues,
 };

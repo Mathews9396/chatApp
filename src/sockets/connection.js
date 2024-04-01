@@ -38,7 +38,7 @@ const socketConnection = function (socket) {
 
       const retval = await createMessage(params, socket);
       console.log(`\n\nretval - `, retval);
-      socket.to(socket.data.roomId).emit("chat message", params); // emiting to socket does not emit to the same room from where it was emitted
+      socket.to(socket.data.roomId).emit("chat message", retval); // emiting to socket does not emit to the same room from where it was emitted
 
       if (callback) {
         callback({

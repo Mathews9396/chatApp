@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 require("dotenv").config();
 const { v4: uuidv4 } = require("uuid");
+const crypto = require("crypto");
 
 const groupChatSchema = new mongoose.Schema(
   {
@@ -13,6 +14,7 @@ const groupChatSchema = new mongoose.Schema(
     lastMessageTimestamp: { type: Date, default: Date.now },
     pinned: { type: Boolean, default: false },
     groupChat: { type: Boolean, default: true },
+    chatKey: { type: Buffer, required: true },
   },
   {
     timestamps: true,
@@ -26,6 +28,10 @@ groupChatSchema.statics.generateUniqueUUID = async function () {
     return uniqueUUID;
   }
   return GroupChat.generateUniqueUUID();
+};
+
+groupChatSchema.statics.generateKey = function () {
+  return crypto.randomBytes(32);
 };
 
 const GroupChat = mongoose.model("GroupChat", groupChatSchema);

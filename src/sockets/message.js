@@ -1,15 +1,17 @@
 const Message = require("@models/message");
-const mongoose = require("mongoose");
 const crypto = require("crypto");
+const { removeValues } = require("@helpers/chatHelper");
 
-// Function to encrypt a message using AES
-// function encryptMessage(message, key) {
-//   const iv = crypto.randomBytes(16); // Generate initialization vector
-//   const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
-//   let encryptedMessage = cipher.update(message, "utf8", "hex");
-//   encryptedMessage += cipher.final("hex");
-//   return { encryptedMessage, iv };
-// }
+function encryptMessage(chatKey, content) {
+  const key = chatKey;
+  const iv = crypto.randomBytes(16);
+
+  const cipher = crypto.createCipheriv(process.env.ENCRYPT_ALGORITHM, key, iv);
+
+  let encrypted = cipher.update(content, "utf8", "hex");
+  encrypted += cipher.final("hex");
+  return [encrypted, iv];
+}
 
 const updateChat = async function (chat, messageId) {
   chat.messages.push(messageId);
@@ -21,19 +23,20 @@ const updateChat = async function (chat, messageId) {
 const createMessage = async function (params, socket) {
   const chat = socket.data.chat;
 
-  // const { encryptedMessage, iv } = encryptMessage(params, chat.chatKey);
+  const [encryptedMessageContent, iv] = encryptMessage(chat.chatKey, params);
 
   const newMessage = new Message({
     sender: socket.data.userId,
     messageType: "text",
     chat_Id: chat._id,
-    content: params,
-    // messageIV: iv,
+    content: encryptedMessageContent,
+    messageIV: iv,
   });
 
   await newMessage.save();
-  updateChat(chat, newMessage._id);
-  return newMessage;
+  await updateChat(chat, newMessage._id);
+  const newMessageObj = removeValues(newMessage, ["messageIV"]);
+  return newMessageObj;
 };
 
 module.exports = {
